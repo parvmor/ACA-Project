@@ -11,7 +11,8 @@ def parse_args():
     parser=argparse.ArgumentParser()
     parser.add_argument('-r','--recursive',action='store_true',help="recurse into directories and follow symbolic links if necessary")
 #implementing of symbolic links will be done later
-    parser.add_argument('-o','--onlyMatching',action='store_true',help="Print only the matched parts of a matching line")
+    parser.add_argument('-o','--onlyMatching',action='store_true',help="print only the matched parts of a matching line")
+    parser.add_argument('-i','--ignoreCase',action='store_true',help="perform case-insensitive matching")
     parser.add_argument('pattern',nargs=1,help="Pattern to be searched")
     parser.add_argument('destinations',nargs='*',help="File/s or Directorie/s to be searched")
     args=parser.parse_args()
@@ -39,7 +40,7 @@ def grep(pattern,destination):
                 for line in currFile:
                     if pattern.search(line):
                         yield line
-        except OSError as error:
+        except (OSError,IOError) as error:
             errors.append(str(error))
             pass
     else:
@@ -49,7 +50,10 @@ def grep(pattern,destination):
                 yield line
 
 def grep_util(args):
-    args.pattern[0]=re.compile(args.pattern[0])
+    if args.ignoreCase:
+        args.pattern[0]=re.compile(args.pattern[0],re.IGNORECASE)
+    else:
+        args.pattern[0]=re.compile(args.pattern[0])
     for destination in args.destinations:
         if not os.path.exists(destination):
             errors.append("File/Directory '" + destination + "' does not exists.")            
