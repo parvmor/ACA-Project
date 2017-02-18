@@ -18,10 +18,14 @@ def parse_args():
     args=parser.parse_args()
     return args
 
-def printMatch(pattern,line,onlyMatching):
+def printMatch(pattern,line,onlyMatching,path=""):
     if onlyMatching:
         for match in pattern.findall(line):
-            print("\033[91m{}\033[00m".format(match))
+            out="\033[91m{}\033[00m".format(match)
+            if path is "":
+                print(out)
+            else:
+                print("\033[95m{}\033[00m".format(path) + "\033[94m{}\033[00m".format(":") + out)
     else:
         out=""
         ind=0
@@ -30,24 +34,30 @@ def printMatch(pattern,line,onlyMatching):
             out += "\033[91m{}\033[00m".format(line[it.start():it.end()])
             ind=it.end()
         out+=line[it.end():(len(line)-1)]
-        print out   
+        if path is not "":
+            print("\033[95m{}\033[00m".format(path) + "\033[94m{}\033[00m".format(":") + out)
+        else:
+            print out   
     return
 
 def grep(pattern,destination):
     if os.path.isfile(destination):
-        try:
-            with open(destination,'r') as currFile:
-                for line in currFile:
-                    if pattern.search(line):
-                        yield line
-        except (OSError,IOError) as error:
-            errors.append(str(error))
-            pass
+        if b'\x00' in open(destination,'r').read():
+            errors.append("The file '" + destination + "' is binary.")
+        else:
+            try:
+                with open(destination,'r') as currFile:
+                    for line in currFile:
+                        if pattern.search(line):
+                            yield (destination,line)
+            except (OSError,IOError) as error:
+                errors.append(str(error))
+                pass
     else:
         for content in os.listdir(destination):
             newPath=os.path.join(destination,content)
-            for line in grep(pattern,newPath):
-                yield line
+            for (path,line) in grep(pattern,newPath):
+                yield (path,line)
 
 def grep_util(args):
     if args.ignoreCase:
@@ -60,8 +70,8 @@ def grep_util(args):
         elif (not args.recursive) and (os.path.isdir(destination)):
             errors.append("The given path '" + destination + "' is a directory. Please use recursive flag.")
         else:
-            for line in grep(args.pattern[0],destination):
-                printMatch(args.pattern[0],line,args.onlyMatching)
+            for (path,line) in grep(args.pattern[0],destination):
+                printMatch(args.pattern[0],line,args.onlyMatching,path)
     if not sys.stdin.isatty():
         for line in sys.stdin:
             if args.pattern[0].search(line):
